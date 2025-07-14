@@ -4,7 +4,7 @@
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -13,7 +13,7 @@
 
 ::-webkit-scrollbar-thumb {
   background: #6b7280;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -28,76 +28,96 @@
   overflow: hidden;
 }
 
-/* Drag and drop animations */
-.react-beautiful-dnd-draggable {
-  transition: transform 0.2s ease;
+/* Smooth transitions */
+* {
+  transition: all 0.2s ease;
 }
 
-.react-beautiful-dnd-drag-handle {
-  cursor: grab;
-}
-
-.react-beautiful-dnd-drag-handle:active {
-  cursor: grabbing;
-}
-
-/* Task card hover effects */
+/* Card hover effects */
 .task-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Modal backdrop */
-.modal-backdrop {
-  backdrop-filter: blur(2px);
+/* Drag and drop animations */
+.sortable-ghost {
+  opacity: 0.4;
 }
 
-/* Form animations */
-.form-slide-in {
-  animation: slideIn 0.3s ease-out;
+.sortable-drag {
+  opacity: 0.8;
+  transform: rotate(2deg);
 }
 
-@keyframes slideIn {
-  from {
-    transform: translateY(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+/* Column styling */
+.column-header {
+  border-bottom: 1px solid #374151;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
 }
 
-/* Responsive grid adjustments */
-@media (max-width: 768px) {
-  .grid-cols-1 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
+/* Task priority indicators */
+.priority-P1 { 
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
 }
 
-@media (min-width: 769px) and (max-width: 1024px) {
-  .md\:grid-cols-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.priority-P2 { 
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  box-shadow: 0 2px 4px rgba(249, 115, 22, 0.3);
 }
 
-@media (min-width: 1025px) {
-  .lg\:grid-cols-4 {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
+.priority-P3 { 
+  background: linear-gradient(135deg, #eab308, #ca8a04);
+  box-shadow: 0 2px 4px rgba(234, 179, 8, 0.3);
 }
 
-/* Priority color indicators */
-.priority-low { background-color: #3b82f6; }
-.priority-medium { background-color: #eab308; }
-.priority-high { background-color: #f97316; }
-.priority-asap { background-color: #ef4444; }
-.priority-emergency { background-color: #b91c1c; }
+.priority-P4 { 
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);
+}
 
-/* Column drag over effects */
-.column-drag-over {
-  background-color: #374151;
-  border: 2px dashed #6b7280;
+/* Project color indicators */
+.project-blue { 
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.project-green { 
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.project-purple { 
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3);
+}
+
+.project-orange { 
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
+.project-red { 
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+}
+
+.project-pink { 
+  background: linear-gradient(135deg, #ec4899, #db2777);
+  box-shadow: 0 2px 4px rgba(236, 72, 153, 0.3);
+}
+
+/* Button hover effects */
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Form styling */
+.form-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* Loading states */
@@ -105,8 +125,8 @@
   border: 2px solid #374151;
   border-top: 2px solid #3b82f6;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   animation: spin 1s linear infinite;
 }
 
@@ -115,19 +135,146 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Button hover effects */
-.btn-primary:hover {
-  background-color: #1d4ed8;
-  transform: translateY(-1px);
+/* Header styling */
+.header-brand {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.btn-secondary:hover {
-  background-color: #4b5563;
-  transform: translateY(-1px);
+/* Column drop zones */
+.drop-zone {
+  border: 2px dashed #4b5563;
+  border-radius: 8px;
+  background: rgba(75, 85, 99, 0.1);
+  transition: all 0.3s ease;
 }
 
-/* Card shadow on drag */
-.dragging {
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
-  transform: rotate(5deg);
+.drop-zone:hover {
+  border-color: #6b7280;
+  background: rgba(75, 85, 99, 0.2);
+}
+
+/* Card animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.task-card {
+  animation: fadeIn 0.3s ease;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .grid-cols-1 {
+    grid-template-columns: 1fr;
+  }
+  
+  .task-card {
+    margin-bottom: 12px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1025px) {
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Login form styling */
+.login-container {
+  background: rgba(17, 24, 39, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+.login-form {
+  background: rgba(31, 41, 55, 0.8);
+  border: 1px solid rgba(75, 85, 99, 0.3);
+}
+
+/* Modal styling */
+.modal-backdrop {
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: rgba(31, 41, 55, 0.95);
+  border: 1px solid rgba(75, 85, 99, 0.3);
+}
+
+/* Custom focus styles */
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* Gradient backgrounds */
+.bg-gradient {
+  background: linear-gradient(135deg, #1f2937, #111827);
+}
+
+.bg-gradient-card {
+  background: linear-gradient(135deg, #374151, #1f2937);
+}
+
+/* Typography */
+.text-gradient {
+  background: linear-gradient(135deg, #f3f4f6, #d1d5db);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Error states */
+.error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+/* Success states */
+.success-message {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #86efac;
+}
+
+/* Table styling for better data presentation */
+.data-table {
+  background: rgba(31, 41, 55, 0.8);
+  border: 1px solid rgba(75, 85, 99, 0.3);
+  border-radius: 8px;
+}
+
+.data-table th {
+  background: rgba(55, 65, 81, 0.8);
+  border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #f3f4f6;
+}
+
+.data-table td {
+  padding: 12px;
+  border-bottom: 1px solid rgba(75, 85, 99, 0.1);
+  color: #d1d5db;
+}
+
+.data-table tr:hover {
+  background: rgba(55, 65, 81, 0.3);
 }
