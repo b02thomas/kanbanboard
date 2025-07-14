@@ -146,10 +146,11 @@ class KanbanAPITester:
         task_data = {
             "title": "Test Task 1",
             "description": "This is a test task",
-            "priority": "medium",
+            "priority": "P2",
             "project": "Test Project",
+            "project_color": "blue",
             "category": "Development",
-            "assigned_to": "user1"
+            "assigned_to": self.current_user['id']
         }
         
         success, response = self.run_test(
@@ -164,6 +165,7 @@ class KanbanAPITester:
             print(f"   Created task with ID: {response.get('id')}")
             print(f"   Task status: {response.get('status')}")
             print(f"   Task priority: {response.get('priority')}")
+            print(f"   Created by: {response.get('created_by')}")
         
         return success, response
 
@@ -174,10 +176,11 @@ class KanbanAPITester:
         task_data = {
             "title": "Test Task with Deadline",
             "description": "Task with deadline",
-            "priority": "high",
+            "priority": "P1",
             "project": "Urgent Project",
-            "category": "Backend",
-            "assigned_to": "user2",
+            "project_color": "red",
+            "category": "Development",
+            "assigned_to": self.current_user['id'],
             "deadline": future_date
         }
         
@@ -196,21 +199,23 @@ class KanbanAPITester:
 
     def test_create_task_different_priorities(self):
         """Test creating tasks with different priorities"""
-        priorities = ["low", "medium", "high", "asap", "emergency"]
+        priorities = ["P1", "P2", "P3", "P4"]
+        colors = ["red", "orange", "blue", "green"]
         results = []
         
-        for priority in priorities:
+        for i, priority in enumerate(priorities):
             task_data = {
-                "title": f"Test Task - {priority.upper()}",
+                "title": f"Test Task - {priority}",
                 "description": f"Task with {priority} priority",
                 "priority": priority,
                 "project": "Priority Test",
+                "project_color": colors[i],
                 "category": "Development",
-                "assigned_to": "user1"
+                "assigned_to": self.current_user['id']
             }
             
             success, response = self.run_test(
-                f"Create Task - {priority.upper()} Priority",
+                f"Create Task - {priority} Priority",
                 "POST",
                 "tasks",
                 200,
