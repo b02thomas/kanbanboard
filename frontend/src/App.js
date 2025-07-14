@@ -370,7 +370,7 @@ function App() {
           <p className="text-gray-400 text-center mt-2">Manage your team's tasks efficiently</p>
         </header>
         
-        <DragDropContext onDragEnd={handleDragEnd}>
+        <DragDropContext onDragEnd={handleDragEnd} isCombineEnabled={false}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {columns.map(column => (
               <Column
