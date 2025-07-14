@@ -268,7 +268,7 @@ const Column = ({ column, tasks, onAddTask }) => {
         </button>
       </div>
       
-      <Droppable droppableId={column.id}>
+      <Droppable droppableId={column.id} isDropDisabled={false}>
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
