@@ -1,5 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import {
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Plus, Calendar, User, AlertCircle, CheckCircle, Clock, TestTube } from "lucide-react";
 import axios from "axios";
 import "./App.css";
@@ -30,60 +47,72 @@ const columns = [
   { id: "completed", title: "Completed", icon: "✅" }
 ];
 
-const TaskCard = ({ task, index }) => {
+const SortableTask = ({ task }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   const formatDeadline = (deadline) => {
     if (!deadline) return null;
     return new Date(deadline).toLocaleDateString();
   };
 
   return (
-    <Draggable draggableId={task.id} index={index}>
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          className={`bg-gray-800 rounded-lg p-4 mb-3 border border-gray-700 cursor-pointer transition-all duration-200 ${
-            snapshot.isDragging ? "shadow-lg transform rotate-2" : "hover:shadow-md"
-          }`}
-        >
-          <div className="flex items-start justify-between mb-2">
-            <h3 className="text-white font-medium text-sm flex-1">{task.title}</h3>
-            <div className={`w-3 h-3 rounded-full ml-2 ${priorityColors[task.priority]}`}></div>
-          </div>
-          
-          {task.description && (
-            <p className="text-gray-400 text-xs mb-2 line-clamp-2">{task.description}</p>
-          )}
-          
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <div className="flex items-center space-x-2">
-              <span className="bg-blue-600 text-white px-2 py-1 rounded text-xs">
-                {task.project}
-              </span>
-              <span className="text-gray-400">{task.category}</span>
-            </div>
-            
-            {task.deadline && (
-              <div className="flex items-center text-gray-400">
-                <Calendar className="w-3 h-3 mr-1" />
-                <span>{formatDeadline(task.deadline)}</span>
-              </div>
-            )}
-          </div>
-          
-          <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center text-gray-400">
-              <User className="w-3 h-3 mr-1" />
-              <span className="text-xs">{task.assigned_to}</span>
-            </div>
-            <span className={`px-2 py-1 rounded text-xs ${priorityColors[task.priority]} text-white`}>
-              {priorityLabels[task.priority]}
-            </span>
-          </div>
-        </div>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`bg-gray-800 rounded-lg p-4 mb-3 border border-gray-700 cursor-pointer transition-all duration-200 hover:shadow-md ${
+        isDragging ? "shadow-lg" : ""
+      }`}
+    >
+      <div className="flex items-start justify-between mb-2">
+        <h3 className="text-white font-medium text-sm flex-1">{task.title}</h3>
+        <div className={`w-3 h-3 rounded-full ml-2 ${priorityColors[task.priority]}`}></div>
+      </div>
+      
+      {task.description && (
+        <p className="text-gray-400 text-xs mb-2 line-clamp-2">{task.description}</p>
       )}
-    </Draggable>
+      
+      <div className="flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center space-x-2">
+          <span className="bg-blue-600 text-white px-2 py-1 rounded text-xs">
+            {task.project}
+          </span>
+          <span className="text-gray-400">{task.category}</span>
+        </div>
+        
+        {task.deadline && (
+          <div className="flex items-center text-gray-400">
+            <Calendar className="w-3 h-3 mr-1" />
+            <span>{formatDeadline(task.deadline)}</span>
+          </div>
+        )}
+      </div>
+      
+      <div className="flex items-center justify-between mt-2">
+        <div className="flex items-center text-gray-400">
+          <User className="w-3 h-3 mr-1" />
+          <span className="text-xs">{task.assigned_to}</span>
+        </div>
+        <span className={`px-2 py-1 rounded text-xs ${priorityColors[task.priority]} text-white`}>
+          {priorityLabels[task.priority]}
+        </span>
+      </div>
+    </div>
   );
 };
 
@@ -238,7 +267,7 @@ const TaskForm = ({ onSubmit, onCancel }) => {
   );
 };
 
-const Column = ({ column, tasks, onAddTask }) => {
+const DroppableColumn = ({ column, tasks, onAddTask, children }) => {
   const [showForm, setShowForm] = useState(false);
   
   const handleAddTask = async (taskData) => {
@@ -268,22 +297,11 @@ const Column = ({ column, tasks, onAddTask }) => {
         </button>
       </div>
       
-      <Droppable droppableId={column.id} isDropDisabled={false}>
-        {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            className={`flex-1 transition-colors ${
-              snapshot.isDraggingOver ? "bg-gray-800" : ""
-            }`}
-          >
-            {tasks.map((task, index) => (
-              <TaskCard key={task.id} task={task} index={index} />
-            ))}
-            {provided.placeholder}
-          </div>
-        )}
-      </Droppable>
+      <div className="flex-1">
+        <SortableContext items={tasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
+          {children}
+        </SortableContext>
+      </div>
       
       {showForm && (
         <TaskForm
@@ -298,6 +316,13 @@ const Column = ({ column, tasks, onAddTask }) => {
 function App() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     fetchTasks();
@@ -323,30 +348,33 @@ function App() {
     }
   };
 
-  const handleDragEnd = async (result) => {
-    const { destination, source, draggableId } = result;
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
     
-    if (!destination) return;
+    if (!over) return;
     
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
+    const activeTask = tasks.find(task => task.id === active.id);
+    const overColumnId = over.id;
+    
+    // Check if we're dropping on a column or another task
+    const targetColumn = columns.find(col => col.id === overColumnId) ? 
+      overColumnId : 
+      tasks.find(task => task.id === overColumnId)?.status;
+    
+    if (!activeTask || !targetColumn || activeTask.status === targetColumn) {
       return;
     }
 
-    const newTasks = Array.from(tasks);
-    const task = newTasks.find(t => t.id === draggableId);
+    // Update task status
+    const updatedTask = { ...activeTask, status: targetColumn };
     
-    if (task) {
-      const updatedTask = { ...task, status: destination.droppableId };
-      
-      try {
-        await axios.put(`${API}/tasks/${draggableId}`, { status: destination.droppableId });
-        setTasks(newTasks.map(t => t.id === draggableId ? updatedTask : t));
-      } catch (error) {
-        console.error("Error updating task:", error);
-      }
+    try {
+      await axios.put(`${API}/tasks/${activeTask.id}`, { status: targetColumn });
+      setTasks(tasks.map(task => 
+        task.id === activeTask.id ? updatedTask : task
+      ));
+    } catch (error) {
+      console.error("Error updating task:", error);
     }
   };
 
@@ -370,18 +398,29 @@ function App() {
           <p className="text-gray-400 text-center mt-2">Manage your team's tasks efficiently</p>
         </header>
         
-        <DragDropContext onDragEnd={handleDragEnd} isCombineEnabled={false}>
+        <DndContext 
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {columns.map(column => (
-              <Column
-                key={column.id}
-                column={column}
-                tasks={getTasksByStatus(column.id)}
-                onAddTask={handleAddTask}
-              />
-            ))}
+            {columns.map(column => {
+              const columnTasks = getTasksByStatus(column.id);
+              return (
+                <DroppableColumn
+                  key={column.id}
+                  column={column}
+                  tasks={columnTasks}
+                  onAddTask={handleAddTask}
+                >
+                  {columnTasks.map(task => (
+                    <SortableTask key={task.id} task={task} />
+                  ))}
+                </DroppableColumn>
+              );
+            })}
           </div>
-        </DragDropContext>
+        </DndContext>
       </div>
     </div>
   );
