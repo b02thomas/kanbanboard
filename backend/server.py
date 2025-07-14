@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,10 +6,9 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 import uuid
 from datetime import datetime
-
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -25,32 +24,76 @@ app = FastAPI()
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-
 # Define Models
-class StatusCheck(BaseModel):
+class Task(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    title: str
+    description: Optional[str] = ""
+    priority: str = "medium"  # low, medium, high, asap, emergency
+    status: str = "todo"  # todo, inprogress, testing, completed
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by: str = "user1"  # Will be dynamic later
+    project: str = "General"
+    category: str = "Development"
+    assigned_to: str = "user1"
+    deadline: Optional[datetime] = None
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class TaskCreate(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    priority: str = "medium"
+    project: str = "General"
+    category: str = "Development"
+    assigned_to: str = "user1"
+    deadline: Optional[datetime] = None
 
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    priority: Optional[str] = None
+    status: Optional[str] = None
+    project: Optional[str] = None
+    category: Optional[str] = None
+    assigned_to: Optional[str] = None
+    deadline: Optional[datetime] = None
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.dict()
-    status_obj = StatusCheck(**status_dict)
-    _ = await db.status_checks.insert_one(status_obj.dict())
-    return status_obj
+# Task Routes
+@api_router.get("/tasks", response_model=List[Task])
+async def get_tasks():
+    tasks = await db.tasks.find().to_list(1000)
+    return [Task(**task) for task in tasks]
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    status_checks = await db.status_checks.find().to_list(1000)
-    return [StatusCheck(**status_check) for status_check in status_checks]
+@api_router.post("/tasks", response_model=Task)
+async def create_task(task: TaskCreate):
+    task_dict = task.dict()
+    task_obj = Task(**task_dict)
+    await db.tasks.insert_one(task_obj.dict())
+    return task_obj
+
+@api_router.put("/tasks/{task_id}", response_model=Task)
+async def update_task(task_id: str, task_update: TaskUpdate):
+    update_data = {k: v for k, v in task_update.dict().items() if v is not None}
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No data provided for update")
+    
+    result = await db.tasks.find_one_and_update(
+        {"id": task_id},
+        {"$set": update_data},
+        return_document=True
+    )
+    
+    if result is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    return Task(**result)
+
+@api_router.delete("/tasks/{task_id}")
+async def delete_task(task_id: str):
+    result = await db.tasks.delete_one({"id": task_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"message": "Task deleted successfully"}
 
 # Include the router in the main app
 app.include_router(api_router)
