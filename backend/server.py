@@ -22,25 +22,25 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # Security setup
-SECRET_KEY = "viva-startup-secret-key-2025"
+SECRET_KEY = "smb-startup-secret-key-2025"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 hours
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 # Create the main app without a prefix
-app = FastAPI(title="Viva Startup Kanban Board")
+app = FastAPI(title="SMB Startup Kanban Board")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-# Predefined users for the startup
+# Predefined users for the startup - YOU CAN ADD MORE USERS HERE
 USERS = {
     "admin": {
         "id": "admin",
         "username": "admin",
-        "email": "admin@viva.startup",
+        "email": "admin@smb.startup",
         "full_name": "Admin User",
         "hashed_password": pwd_context.hash("admin123"),
         "avatar": "👨‍💼",
@@ -49,7 +49,7 @@ USERS = {
     "developer": {
         "id": "developer", 
         "username": "developer",
-        "email": "dev@viva.startup",
+        "email": "dev@smb.startup",
         "full_name": "Lead Developer",
         "hashed_password": pwd_context.hash("dev123"),
         "avatar": "👨‍💻",
@@ -58,12 +58,40 @@ USERS = {
     "designer": {
         "id": "designer",
         "username": "designer", 
-        "email": "design@viva.startup",
+        "email": "design@smb.startup",
         "full_name": "UI/UX Designer",
         "hashed_password": pwd_context.hash("design123"),
         "avatar": "👩‍🎨",
         "role": "designer"
+    },
+    "manager": {
+        "id": "manager",
+        "username": "manager",
+        "email": "manager@smb.startup", 
+        "full_name": "Project Manager",
+        "hashed_password": pwd_context.hash("manager123"),
+        "avatar": "👩‍💼",
+        "role": "manager"
+    },
+    "sales": {
+        "id": "sales",
+        "username": "sales",
+        "email": "sales@smb.startup",
+        "full_name": "Sales Lead",
+        "hashed_password": pwd_context.hash("sales123"),
+        "avatar": "👨‍💰",
+        "role": "sales"
     }
+    # TO ADD MORE USERS:
+    # "username": {
+    #     "id": "username",
+    #     "username": "username",
+    #     "email": "email@smb.startup",
+    #     "full_name": "Full Name",
+    #     "hashed_password": pwd_context.hash("password123"),
+    #     "avatar": "👤",  # Choose emoji
+    #     "role": "role"
+    # }
 }
 
 # Models
@@ -83,6 +111,28 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     user: User
+
+class Project(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: Optional[str] = ""
+    color: str = "blue"
+    status: str = "active"  # active, completed, paused
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by: str
+    user_id: str
+
+class ProjectCreate(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    color: str = "blue"
+    status: str = "active"
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    color: Optional[str] = None
+    status: Optional[str] = None
 
 class Task(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -188,6 +238,46 @@ async def get_me(current_user: User = Depends(get_current_user)):
 async def get_users(current_user: User = Depends(get_current_user)):
     return [User(**user) for user in USERS.values()]
 
+# Project Routes
+@api_router.get("/projects", response_model=List[Project])
+async def get_projects(current_user: User = Depends(get_current_user)):
+    projects = await db.projects.find({"user_id": current_user.id}).to_list(1000)
+    return [Project(**project) for project in projects]
+
+@api_router.post("/projects", response_model=Project)
+async def create_project(project: ProjectCreate, current_user: User = Depends(get_current_user)):
+    project_dict = project.dict()
+    project_dict["created_by"] = current_user.id
+    project_dict["user_id"] = current_user.id
+    project_obj = Project(**project_dict)
+    await db.projects.insert_one(project_obj.dict())
+    return project_obj
+
+@api_router.put("/projects/{project_id}", response_model=Project)
+async def update_project(project_id: str, project_update: ProjectUpdate, current_user: User = Depends(get_current_user)):
+    update_data = {k: v for k, v in project_update.dict().items() if v is not None}
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No data provided for update")
+    
+    result = await db.projects.find_one_and_update(
+        {"id": project_id, "user_id": current_user.id},
+        {"$set": update_data},
+        return_document=True
+    )
+    
+    if result is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    return Project(**result)
+
+@api_router.delete("/projects/{project_id}")
+async def delete_project(project_id: str, current_user: User = Depends(get_current_user)):
+    result = await db.projects.delete_one({"id": project_id, "user_id": current_user.id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {"message": "Project deleted successfully"}
+
 # Task Routes
 @api_router.get("/tasks", response_model=List[Task])
 async def get_tasks(current_user: User = Depends(get_current_user)):
@@ -227,6 +317,44 @@ async def delete_task(task_id: str, current_user: User = Depends(get_current_use
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Task not found")
     return {"message": "Task deleted successfully"}
+
+# Analytics Routes
+@api_router.get("/analytics/dashboard")
+async def get_dashboard_analytics(current_user: User = Depends(get_current_user)):
+    # Get task statistics
+    tasks = await db.tasks.find({"user_id": current_user.id}).to_list(1000)
+    projects = await db.projects.find({"user_id": current_user.id}).to_list(1000)
+    
+    # Task statistics
+    task_stats = {
+        "total_tasks": len(tasks),
+        "todo": len([t for t in tasks if t["status"] == "todo"]),
+        "inprogress": len([t for t in tasks if t["status"] == "inprogress"]),
+        "testing": len([t for t in tasks if t["status"] == "testing"]),
+        "completed": len([t for t in tasks if t["status"] == "completed"]),
+        "overdue": len([t for t in tasks if t.get("deadline") and datetime.fromisoformat(t["deadline"].replace("Z", "+00:00")) < datetime.now()]),
+    }
+    
+    # Priority distribution
+    priority_stats = {
+        "P1": len([t for t in tasks if t["priority"] == "P1"]),
+        "P2": len([t for t in tasks if t["priority"] == "P2"]),
+        "P3": len([t for t in tasks if t["priority"] == "P3"]),
+        "P4": len([t for t in tasks if t["priority"] == "P4"]),
+    }
+    
+    # Project statistics
+    project_stats = {
+        "total_projects": len(projects),
+        "active_projects": len([p for p in projects if p["status"] == "active"]),
+        "completed_projects": len([p for p in projects if p["status"] == "completed"]),
+    }
+    
+    return {
+        "task_stats": task_stats,
+        "priority_stats": priority_stats,
+        "project_stats": project_stats
+    }
 
 # Include the router in the main app
 app.include_router(api_router)

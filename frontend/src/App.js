@@ -16,7 +16,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, Calendar, User, LogOut, Shield, Settings } from "lucide-react";
+import { Plus, Calendar, User, LogOut, FolderOpen, BarChart3, Settings, X, Edit2 } from "lucide-react";
 import axios from "axios";
 import "./App.css";
 
@@ -36,7 +36,9 @@ const projectColors = {
   purple: "bg-purple-500",
   orange: "bg-orange-500",
   red: "bg-red-500",
-  pink: "bg-pink-500"
+  pink: "bg-pink-500",
+  indigo: "bg-indigo-500",
+  teal: "bg-teal-500"
 };
 
 const columns = [
@@ -87,7 +89,7 @@ const LoginForm = ({ onLogin }) => {
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="bg-gray-800 rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Viva Startup</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">SMB Startup</h1>
           <p className="text-gray-400">Kanban Board System</p>
         </div>
         
@@ -142,6 +144,8 @@ const LoginForm = ({ onLogin }) => {
               <p>👨‍💼 Admin: admin / admin123</p>
               <p>👨‍💻 Developer: developer / dev123</p>
               <p>👩‍🎨 Designer: designer / design123</p>
+              <p>👩‍💼 Manager: manager / manager123</p>
+              <p>👨‍💰 Sales: sales / sales123</p>
             </div>
           </div>
         </div>
@@ -150,7 +154,250 @@ const LoginForm = ({ onLogin }) => {
   );
 };
 
-const SortableTask = ({ task, users }) => {
+const ProjectModal = ({ isOpen, onClose, onSubmit, projects, editProject }) => {
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    color: "blue",
+    status: "active"
+  });
+
+  useEffect(() => {
+    if (editProject) {
+      setFormData(editProject);
+    } else {
+      setFormData({
+        name: "",
+        description: "",
+        color: "blue",
+        status: "active"
+      });
+    }
+  }, [editProject]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return;
+    onSubmit(formData);
+    setFormData({ name: "", description: "", color: "blue", status: "active" });
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-white text-lg font-semibold">
+            {editProject ? "Edit Project" : "Manage Projects"}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-300 text-sm mb-1">Project Name *</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                placeholder="Enter project name"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-gray-300 text-sm mb-1">Color</label>
+              <select
+                value={formData.color}
+                onChange={(e) => setFormData({...formData, color: e.target.value})}
+                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="blue">Blue</option>
+                <option value="green">Green</option>
+                <option value="purple">Purple</option>
+                <option value="orange">Orange</option>
+                <option value="red">Red</option>
+                <option value="pink">Pink</option>
+                <option value="indigo">Indigo</option>
+                <option value="teal">Teal</option>
+              </select>
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-gray-300 text-sm mb-1">Description</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              placeholder="Enter project description"
+              rows="2"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-gray-300 text-sm mb-1">Status</label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData({...formData, status: e.target.value})}
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+            >
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="paused">Paused</option>
+            </select>
+          </div>
+          
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors"
+          >
+            {editProject ? "Update Project" : "Create Project"}
+          </button>
+        </form>
+        
+        <div className="border-t border-gray-700 pt-4">
+          <h3 className="text-white font-medium mb-3">Existing Projects</h3>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {projects.map((project) => (
+              <div
+                key={project.id}
+                className="flex items-center justify-between bg-gray-700 p-3 rounded"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className={`w-3 h-3 rounded-full ${projectColors[project.color]}`}></div>
+                  <div>
+                    <p className="text-white font-medium">{project.name}</p>
+                    <p className="text-gray-400 text-sm">{project.description}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    project.status === 'active' ? 'bg-green-600' : 
+                    project.status === 'completed' ? 'bg-blue-600' : 'bg-yellow-600'
+                  } text-white`}>
+                    {project.status}
+                  </span>
+                  <button
+                    onClick={() => onSubmit(project, true)}
+                    className="text-blue-400 hover:text-blue-300"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AnalyticsModal = ({ isOpen, onClose, analytics }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-white text-xl font-semibold">Analytics Dashboard</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Task Statistics */}
+          <div className="bg-gray-700 rounded-lg p-4">
+            <h3 className="text-white font-medium mb-3">Task Statistics</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-300">Total Tasks:</span>
+                <span className="text-white font-medium">{analytics.task_stats?.total_tasks || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">To Do:</span>
+                <span className="text-blue-400 font-medium">{analytics.task_stats?.todo || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">In Progress:</span>
+                <span className="text-yellow-400 font-medium">{analytics.task_stats?.inprogress || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">Testing:</span>
+                <span className="text-purple-400 font-medium">{analytics.task_stats?.testing || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">Completed:</span>
+                <span className="text-green-400 font-medium">{analytics.task_stats?.completed || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">Overdue:</span>
+                <span className="text-red-400 font-medium">{analytics.task_stats?.overdue || 0}</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Priority Distribution */}
+          <div className="bg-gray-700 rounded-lg p-4">
+            <h3 className="text-white font-medium mb-3">Priority Distribution</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-300">P1 (Critical):</span>
+                <span className="text-red-400 font-medium">{analytics.priority_stats?.P1 || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">P2 (High):</span>
+                <span className="text-orange-400 font-medium">{analytics.priority_stats?.P2 || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">P3 (Medium):</span>
+                <span className="text-yellow-400 font-medium">{analytics.priority_stats?.P3 || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">P4 (Low):</span>
+                <span className="text-green-400 font-medium">{analytics.priority_stats?.P4 || 0}</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Project Statistics */}
+          <div className="bg-gray-700 rounded-lg p-4">
+            <h3 className="text-white font-medium mb-3">Project Statistics</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-300">Total Projects:</span>
+                <span className="text-white font-medium">{analytics.project_stats?.total_projects || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">Active:</span>
+                <span className="text-green-400 font-medium">{analytics.project_stats?.active_projects || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">Completed:</span>
+                <span className="text-blue-400 font-medium">{analytics.project_stats?.completed_projects || 0}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SortableTask = ({ task, users, projects }) => {
   const {
     attributes,
     listeners,
@@ -171,10 +418,15 @@ const SortableTask = ({ task, users }) => {
     const date = new Date(deadline);
     const today = new Date();
     const isToday = date.toDateString() === today.toDateString();
-    return isToday ? "today" : date.toLocaleDateString();
+    const isPast = date < today;
+    
+    if (isToday) return "today";
+    if (isPast) return "overdue";
+    return date.toLocaleDateString();
   };
 
   const assignedUser = users.find(u => u.id === task.assigned_to);
+  const taskProject = projects.find(p => p.name === task.project);
 
   return (
     <div
@@ -187,7 +439,7 @@ const SortableTask = ({ task, users }) => {
       }`}
     >
       <div className="flex items-start justify-between mb-3">
-        <div className={`${projectColors[task.project_color]} text-white px-2 py-1 rounded text-xs font-medium`}>
+        <div className={`${taskProject ? projectColors[taskProject.color] : projectColors[task.project_color]} text-white px-2 py-1 rounded text-xs font-medium`}>
           {task.project}
         </div>
         <div className={`${priorityColors[task.priority]} text-white px-2 py-1 rounded text-xs font-medium`}>
@@ -208,7 +460,10 @@ const SortableTask = ({ task, users }) => {
         </div>
         
         {task.deadline && (
-          <div className="flex items-center text-gray-400 text-xs">
+          <div className={`flex items-center text-xs ${
+            formatDeadline(task.deadline) === "overdue" ? "text-red-400" : 
+            formatDeadline(task.deadline) === "today" ? "text-yellow-400" : "text-gray-400"
+          }`}>
             <Calendar className="w-3 h-3 mr-1" />
             <span>{formatDeadline(task.deadline)}</span>
           </div>
@@ -218,13 +473,13 @@ const SortableTask = ({ task, users }) => {
   );
 };
 
-const TaskForm = ({ onSubmit, onCancel, users }) => {
+const TaskForm = ({ onSubmit, onCancel, users, projects }) => {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     priority: "P2",
-    project: "General",
-    project_color: "blue",
+    project: projects.length > 0 ? projects[0].name : "General",
+    project_color: projects.length > 0 ? projects[0].color : "blue",
     category: "Development",
     assigned_to: users[0]?.id || "admin",
     deadline: ""
@@ -234,8 +489,10 @@ const TaskForm = ({ onSubmit, onCancel, users }) => {
     e.preventDefault();
     if (!formData.title.trim()) return;
     
+    const selectedProject = projects.find(p => p.name === formData.project);
     const taskData = {
       ...formData,
+      project_color: selectedProject ? selectedProject.color : formData.project_color,
       deadline: formData.deadline ? new Date(formData.deadline).toISOString() : null
     };
     
@@ -244,8 +501,8 @@ const TaskForm = ({ onSubmit, onCancel, users }) => {
       title: "",
       description: "",
       priority: "P2",
-      project: "General",
-      project_color: "blue",
+      project: projects.length > 0 ? projects[0].name : "General",
+      project_color: projects.length > 0 ? projects[0].color : "blue",
       category: "Development",
       assigned_to: users[0]?.id || "admin",
       deadline: ""
@@ -298,33 +555,27 @@ const TaskForm = ({ onSubmit, onCancel, users }) => {
             
             <div>
               <label className="block text-gray-300 text-sm mb-1">Project</label>
-              <input
-                type="text"
+              <select
                 value={formData.project}
-                onChange={(e) => setFormData({...formData, project: e.target.value})}
+                onChange={(e) => {
+                  const selectedProject = projects.find(p => p.name === e.target.value);
+                  setFormData({
+                    ...formData, 
+                    project: e.target.value,
+                    project_color: selectedProject ? selectedProject.color : "blue"
+                  });
+                }}
                 className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                placeholder="Project name"
-              />
+              >
+                {projects.map(project => (
+                  <option key={project.id} value={project.name}>{project.name}</option>
+                ))}
+                <option value="General">General</option>
+              </select>
             </div>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-300 text-sm mb-1">Project Color</label>
-              <select
-                value={formData.project_color}
-                onChange={(e) => setFormData({...formData, project_color: e.target.value})}
-                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-              >
-                <option value="blue">Blue</option>
-                <option value="green">Green</option>
-                <option value="purple">Purple</option>
-                <option value="orange">Orange</option>
-                <option value="red">Red</option>
-                <option value="pink">Pink</option>
-              </select>
-            </div>
-            
             <div>
               <label className="block text-gray-300 text-sm mb-1">Category</label>
               <select
@@ -337,23 +588,24 @@ const TaskForm = ({ onSubmit, onCancel, users }) => {
                 <option value="Marketing">Marketing</option>
                 <option value="Business">Business</option>
                 <option value="Testing">Testing</option>
+                <option value="Sales">Sales</option>
               </select>
             </div>
-          </div>
-          
-          <div>
-            <label className="block text-gray-300 text-sm mb-1">Assigned To</label>
-            <select
-              value={formData.assigned_to}
-              onChange={(e) => setFormData({...formData, assigned_to: e.target.value})}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-            >
-              {users.map(user => (
-                <option key={user.id} value={user.id}>
-                  {user.avatar} {user.full_name}
-                </option>
-              ))}
-            </select>
+            
+            <div>
+              <label className="block text-gray-300 text-sm mb-1">Assigned To</label>
+              <select
+                value={formData.assigned_to}
+                onChange={(e) => setFormData({...formData, assigned_to: e.target.value})}
+                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              >
+                {users.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.avatar} {user.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           
           <div>
@@ -387,7 +639,7 @@ const TaskForm = ({ onSubmit, onCancel, users }) => {
   );
 };
 
-const DroppableColumn = ({ column, tasks, onAddTask, children, users }) => {
+const DroppableColumn = ({ column, tasks, onAddTask, children, users, projects }) => {
   const [showForm, setShowForm] = useState(false);
   
   const handleAddTask = async (taskData) => {
@@ -434,23 +686,38 @@ const DroppableColumn = ({ column, tasks, onAddTask, children, users }) => {
           onSubmit={handleAddTask}
           onCancel={() => setShowForm(false)}
           users={users}
+          projects={projects}
         />
       )}
     </div>
   );
 };
 
-const Header = ({ user, onLogout }) => {
+const Header = ({ user, onLogout, onOpenProjects, onOpenAnalytics }) => {
   return (
     <header className="bg-gray-800 border-b border-gray-700 p-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="text-2xl font-bold text-white">Viva</div>
+          <div className="text-2xl font-bold text-white">SMB Startup</div>
           <div className="text-gray-400">|</div>
           <div className="text-gray-300">Kanban Board</div>
         </div>
         
         <div className="flex items-center space-x-4">
+          <button
+            onClick={onOpenProjects}
+            className="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded transition-colors"
+            title="Manage Projects"
+          >
+            <FolderOpen className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onOpenAnalytics}
+            className="bg-green-600 hover:bg-green-700 text-white p-2 rounded transition-colors"
+            title="Analytics"
+          >
+            <BarChart3 className="w-4 h-4" />
+          </button>
           <div className="flex items-center space-x-2">
             <span className="text-lg">{user.avatar}</span>
             <span className="text-white text-sm">{user.full_name}</span>
@@ -459,6 +726,7 @@ const Header = ({ user, onLogout }) => {
           <button
             onClick={onLogout}
             className="bg-red-600 hover:bg-red-700 text-white p-2 rounded transition-colors"
+            title="Logout"
           >
             <LogOut className="w-4 h-4" />
           </button>
@@ -472,7 +740,12 @@ function App() {
   const [user, setUser] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [analytics, setAnalytics] = useState({});
   const [loading, setLoading] = useState(true);
+  const [showProjects, setShowProjects] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [editProject, setEditProject] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -490,6 +763,8 @@ function App() {
     if (user) {
       fetchTasks();
       fetchUsers();
+      fetchProjects();
+      fetchAnalytics();
     }
   }, [user]);
 
@@ -516,6 +791,24 @@ function App() {
     }
   };
 
+  const fetchProjects = async () => {
+    try {
+      const response = await axios.get(`${API}/projects`);
+      setProjects(response.data);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+    }
+  };
+
+  const fetchAnalytics = async () => {
+    try {
+      const response = await axios.get(`${API}/analytics/dashboard`);
+      setAnalytics(response.data);
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+    }
+  };
+
   const handleLogin = (userData) => {
     setUser(userData);
     setLoading(false);
@@ -528,14 +821,32 @@ function App() {
     setUser(null);
     setTasks([]);
     setUsers([]);
+    setProjects([]);
+    setAnalytics({});
   };
 
   const handleAddTask = async (taskData) => {
     try {
       const response = await axios.post(`${API}/tasks`, taskData);
       setTasks([...tasks, response.data]);
+      fetchAnalytics(); // Refresh analytics
     } catch (error) {
       console.error("Error creating task:", error);
+    }
+  };
+
+  const handleProjectSubmit = async (projectData, isEdit = false) => {
+    try {
+      if (isEdit) {
+        await axios.put(`${API}/projects/${projectData.id}`, projectData);
+        setEditProject(null);
+      } else {
+        await axios.post(`${API}/projects`, projectData);
+      }
+      fetchProjects();
+      fetchAnalytics(); // Refresh analytics
+    } catch (error) {
+      console.error("Error managing project:", error);
     }
   };
 
@@ -564,6 +875,7 @@ function App() {
       setTasks(tasks.map(task => 
         task.id === activeTask.id ? updatedTask : task
       ));
+      fetchAnalytics(); // Refresh analytics
     } catch (error) {
       console.error("Error updating task:", error);
     }
@@ -594,7 +906,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-900">
-      <Header user={user} onLogout={handleLogout} />
+      <Header 
+        user={user} 
+        onLogout={handleLogout} 
+        onOpenProjects={() => setShowProjects(true)}
+        onOpenAnalytics={() => setShowAnalytics(true)}
+      />
       
       <div className="max-w-7xl mx-auto p-6">
         <DndContext 
@@ -612,9 +929,10 @@ function App() {
                   tasks={columnTasks}
                   onAddTask={handleAddTask}
                   users={users}
+                  projects={projects}
                 >
                   {columnTasks.map(task => (
-                    <SortableTask key={task.id} task={task} users={users} />
+                    <SortableTask key={task.id} task={task} users={users} projects={projects} />
                   ))}
                 </DroppableColumn>
               );
@@ -622,6 +940,23 @@ function App() {
           </div>
         </DndContext>
       </div>
+      
+      <ProjectModal
+        isOpen={showProjects}
+        onClose={() => {
+          setShowProjects(false);
+          setEditProject(null);
+        }}
+        onSubmit={handleProjectSubmit}
+        projects={projects}
+        editProject={editProject}
+      />
+      
+      <AnalyticsModal
+        isOpen={showAnalytics}
+        onClose={() => setShowAnalytics(false)}
+        analytics={analytics}
+      />
     </div>
   );
 }
