@@ -13,10 +13,13 @@ class KanbanAPITester:
         self.token = None
         self.current_user = None
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, params=None):
+    def run_test(self, name, method, endpoint, expected_status, data=None, params=None, auth_required=True):
         """Run a single API test"""
         url = f"{self.api_url}/{endpoint}"
         headers = {'Content-Type': 'application/json'}
+        
+        if auth_required and self.token:
+            headers['Authorization'] = f'Bearer {self.token}'
 
         self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
@@ -55,6 +58,76 @@ class KanbanAPITester:
         except Exception as e:
             print(f"❌ Failed - Error: {str(e)}")
             return False, {}
+
+    def test_login(self, username, password):
+        """Test login with demo accounts"""
+        login_data = {
+            "username": username,
+            "password": password
+        }
+        
+        success, response = self.run_test(
+            f"Login as {username}",
+            "POST",
+            "auth/login",
+            200,
+            data=login_data,
+            auth_required=False
+        )
+        
+        if success and 'access_token' in response:
+            self.token = response['access_token']
+            self.current_user = response['user']
+            print(f"   Logged in as: {self.current_user['full_name']} ({self.current_user['role']})")
+            print(f"   Avatar: {self.current_user['avatar']}")
+            return True
+        return False
+
+    def test_get_current_user(self):
+        """Test GET /api/auth/me"""
+        success, response = self.run_test(
+            "Get Current User",
+            "GET",
+            "auth/me",
+            200
+        )
+        
+        if success:
+            print(f"   User: {response.get('full_name')} ({response.get('role')})")
+            print(f"   Email: {response.get('email')}")
+        
+        return success
+
+    def test_get_all_users(self):
+        """Test GET /api/auth/users"""
+        success, response = self.run_test(
+            "Get All Users",
+            "GET",
+            "auth/users",
+            200
+        )
+        
+        if success:
+            print(f"   Found {len(response)} users:")
+            for user in response:
+                print(f"   - {user['avatar']} {user['full_name']} ({user['role']})")
+        
+        return success
+
+    def test_unauthorized_access(self):
+        """Test accessing protected endpoints without token"""
+        old_token = self.token
+        self.token = None
+        
+        success, response = self.run_test(
+            "Unauthorized Access to Tasks",
+            "GET",
+            "tasks",
+            401
+        )
+        
+        self.token = old_token
+        return success
 
     def test_get_tasks_empty(self):
         """Test GET /api/tasks when no tasks exist"""
