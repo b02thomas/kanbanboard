@@ -10,6 +10,8 @@ class KanbanAPITester:
         self.tests_run = 0
         self.tests_passed = 0
         self.created_task_ids = []
+        self.token = None
+        self.current_user = None
 
     def run_test(self, name, method, endpoint, expected_status, data=None, params=None):
         """Run a single API test"""
