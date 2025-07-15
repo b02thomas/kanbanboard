@@ -12,6 +12,8 @@ import uuid
 from datetime import datetime, timedelta
 import jwt
 from passlib.context import CryptContext
+import httpx
+import json
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -34,6 +36,10 @@ app = FastAPI(title="SMB Startup Kanban Board")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
+
+# N8N Configuration - YOU CAN CONFIGURE THIS FOR YOUR N8N WORKFLOW
+N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'https://your-n8n-instance.com/webhook/chatbot')
+N8N_API_KEY = os.environ.get('N8N_API_KEY', 'your-n8n-api-key')
 
 # Predefined users for the startup - YOU CAN ADD MORE USERS HERE
 USERS = {
@@ -111,6 +117,29 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     user: User
+
+class ChatMessage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    message: str
+    user_id: str
+    user_name: str
+    user_avatar: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    is_ai: bool = False
+    ai_response: Optional[str] = None
+
+class ChatMessageCreate(BaseModel):
+    message: str
+
+class ChatMessageResponse(BaseModel):
+    id: str
+    message: str
+    user_id: str
+    user_name: str
+    user_avatar: str
+    timestamp: datetime
+    is_ai: bool
+    ai_response: Optional[str] = None
 
 class Project(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -210,6 +239,44 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise credentials_exception
     return User(**user)
 
+async def call_n8n_workflow(message: str, user_context: dict) -> str:
+    """Call N8N workflow with user message and context"""
+    try:
+        # Prepare payload for N8N
+        payload = {
+            "message": message,
+            "user": user_context,
+            "timestamp": datetime.utcnow().isoformat(),
+            "context": "kanban_board"
+        }
+        
+        # If N8N_WEBHOOK_URL is not configured, return a mock response
+        if N8N_WEBHOOK_URL == 'https://your-n8n-instance.com/webhook/chatbot':
+            return f"AI Assistant: I'd be happy to help you with your question: '{message}'. I can assist with task management, project planning, and team coordination. Please connect me to your N8N workflow to enable full AI capabilities."
+        
+        async with httpx.AsyncClient() as client:
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {N8N_API_KEY}" if N8N_API_KEY else None
+            }
+            
+            response = await client.post(
+                N8N_WEBHOOK_URL,
+                json=payload,
+                headers=headers,
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                return result.get("response", "I'm here to help!")
+            else:
+                return "I'm temporarily unavailable. Please try again later."
+                
+    except Exception as e:
+        logging.error(f"Error calling N8N workflow: {str(e)}")
+        return "I'm experiencing technical difficulties. Please try again."
+
 # Auth Routes
 @api_router.post("/auth/login", response_model=Token)
 async def login(user_credentials: UserLogin):
@@ -237,6 +304,62 @@ async def get_me(current_user: User = Depends(get_current_user)):
 @api_router.get("/auth/users", response_model=List[User])
 async def get_users(current_user: User = Depends(get_current_user)):
     return [User(**user) for user in USERS.values()]
+
+# Chat Routes
+@api_router.get("/chat/messages", response_model=List[ChatMessageResponse])
+async def get_chat_messages(current_user: User = Depends(get_current_user)):
+    messages = await db.chat_messages.find(
+        {"user_id": current_user.id}
+    ).sort("timestamp", -1).limit(50).to_list(50)
+    
+    return [ChatMessageResponse(**msg) for msg in reversed(messages)]
+
+@api_router.post("/chat/messages", response_model=ChatMessageResponse)
+async def send_chat_message(
+    message: ChatMessageCreate, 
+    current_user: User = Depends(get_current_user)
+):
+    # Create user message
+    user_message = ChatMessage(
+        message=message.message,
+        user_id=current_user.id,
+        user_name=current_user.full_name,
+        user_avatar=current_user.avatar,
+        is_ai=False
+    )
+    
+    # Save user message
+    await db.chat_messages.insert_one(user_message.dict())
+    
+    # Get AI response from N8N
+    ai_response = await call_n8n_workflow(
+        message.message,
+        {
+            "id": current_user.id,
+            "name": current_user.full_name,
+            "role": current_user.role,
+            "avatar": current_user.avatar
+        }
+    )
+    
+    # Create AI response message
+    ai_message = ChatMessage(
+        message=ai_response,
+        user_id="ai_assistant",
+        user_name="AI Assistant",
+        user_avatar="🤖",
+        is_ai=True
+    )
+    
+    # Save AI response
+    await db.chat_messages.insert_one(ai_message.dict())
+    
+    return ChatMessageResponse(**user_message.dict())
+
+@api_router.delete("/chat/messages")
+async def clear_chat_messages(current_user: User = Depends(get_current_user)):
+    await db.chat_messages.delete_many({"user_id": current_user.id})
+    return {"message": "Chat history cleared"}
 
 # Project Routes
 @api_router.get("/projects", response_model=List[Project])
