@@ -216,10 +216,69 @@
   border: 1px solid rgba(75, 85, 99, 0.3);
 }
 
-/* Custom focus styles */
-.focus-ring:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+/* Custom high z-index for modals and overlays */
+.modal-overlay {
+  z-index: 10000 !important;
+}
+
+.chat-button {
+  z-index: 10001 !important;
+}
+
+.chat-window {
+  z-index: 10002 !important;
+}
+
+.task-modal {
+  z-index: 10003 !important;
+}
+
+.project-modal {
+  z-index: 10004 !important;
+}
+
+.analytics-modal {
+  z-index: 10005 !important;
+}
+
+/* Override any conflicting styles */
+.fixed {
+  position: fixed !important;
+}
+
+/* Ensure buttons are always clickable */
+button {
+  position: relative !important;
+  z-index: 100 !important;
+}
+
+.kanban-add-button {
+  z-index: 200 !important;
+}
+
+/* Ensure dropdowns and selects work */
+select, input, textarea {
+  z-index: 150 !important;
+}
+
+/* Override any third-party interference */
+[class*="emergent"], [class*="badge"], [class*="overlay"] {
+  z-index: 1 !important;
+}
+
+/* Fix any modal backdrop issues */
+.modal-backdrop {
+  z-index: 9999 !important;
+}
+
+/* Ensure form elements are accessible */
+.form-element {
+  z-index: 200 !important;
+}
+
+/* Fix any header button issues */
+.header-button {
+  z-index: 300 !important;
 }
 
 /* Gradient backgrounds */
