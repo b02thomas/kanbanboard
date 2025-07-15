@@ -687,8 +687,8 @@ class KanbanAPITester:
             return True  # Still pass as this might be expected behavior
 
 def main():
-    print("🚀 Starting Viva Startup Kanban Board API Tests")
-    print("=" * 60)
+    print("🚀 Starting SMB Startup Kanban Board & AI Assistant API Tests")
+    print("=" * 70)
     
     tester = KanbanAPITester()
     
@@ -700,7 +700,9 @@ def main():
     demo_accounts = [
         ("admin", "admin123"),
         ("developer", "dev123"), 
-        ("designer", "design123")
+        ("designer", "design123"),
+        ("manager", "manager123"),
+        ("sales", "sales123")
     ]
     
     login_results = []
@@ -755,8 +757,33 @@ def main():
     # User isolation test
     test_results.append(tester.test_user_isolation())
     
+    print("\n📁 PROJECT MANAGEMENT TESTS")
+    print("-" * 30)
+    
+    # Project tests
+    test_results.append(tester.test_get_projects_empty())
+    test_results.append(tester.test_create_project()[0])
+    
+    print("\n📊 ANALYTICS TESTS")
+    print("-" * 30)
+    
+    # Analytics tests
+    test_results.append(tester.test_get_analytics_dashboard())
+    
+    print("\n🤖 AI CHATBOT TESTS")
+    print("-" * 30)
+    
+    # Chat functionality tests
+    test_results.append(tester.test_get_chat_messages_empty())
+    test_results.append(tester.test_send_chat_message())
+    test_results.append(tester.test_get_chat_messages_populated()[0])
+    test_results.append(tester.test_send_multiple_chat_messages())
+    test_results.append(tester.test_clear_chat_messages())
+    test_results.append(tester.test_chat_messages_cleared())
+    test_results.append(tester.test_chat_user_isolation())
+    
     # Print final results
-    print(f"\n" + "=" * 60)
+    print(f"\n" + "=" * 70)
     print(f"📊 FINAL RESULTS")
     print(f"Tests Run: {tester.tests_run}")
     print(f"Tests Passed: {tester.tests_passed}")
