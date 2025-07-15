@@ -249,11 +249,11 @@ const ChatBot = ({ user }) => {
 
   if (!isOpen) {
     return (
-      <div className="fixed bottom-6 right-6 z-[9999]">
+      <div className="fixed bottom-6 right-6 chat-button" style={{ zIndex: 10001 }}>
         <button
           onClick={() => setIsOpen(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg transition-all duration-200 transform hover:scale-105"
-          style={{ zIndex: 9999 }}
+          style={{ zIndex: 10001, position: 'relative' }}
         >
           <MessageCircle className="w-6 h-6" />
         </button>
@@ -263,7 +263,7 @@ const ChatBot = ({ user }) => {
 
   if (isMinimized) {
     return (
-      <div className="fixed bottom-6 right-6 z-[9999]">
+      <div className="fixed bottom-6 right-6 chat-window" style={{ zIndex: 10002 }}>
         <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-xl">
           <div className="flex items-center justify-between p-3 border-b border-gray-700">
             <div className="flex items-center space-x-2">
@@ -274,12 +274,14 @@ const ChatBot = ({ user }) => {
               <button
                 onClick={() => setIsMinimized(false)}
                 className="text-gray-400 hover:text-white p-1"
+                style={{ zIndex: 10003 }}
               >
                 <Maximize2 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-gray-400 hover:text-white p-1"
+                style={{ zIndex: 10003 }}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -291,7 +293,7 @@ const ChatBot = ({ user }) => {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999]">
+    <div className="fixed bottom-6 right-6 chat-window" style={{ zIndex: 10002 }}>
       <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-xl w-96 h-[500px] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
