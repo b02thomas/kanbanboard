@@ -249,10 +249,11 @@ const ChatBot = ({ user }) => {
 
   if (!isOpen) {
     return (
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-6 right-6 z-[9999]">
         <button
           onClick={() => setIsOpen(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg transition-all duration-200 transform hover:scale-105"
+          style={{ zIndex: 9999 }}
         >
           <MessageCircle className="w-6 h-6" />
         </button>
@@ -262,7 +263,7 @@ const ChatBot = ({ user }) => {
 
   if (isMinimized) {
     return (
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-6 right-6 z-[9999]">
         <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-xl">
           <div className="flex items-center justify-between p-3 border-b border-gray-700">
             <div className="flex items-center space-x-2">
@@ -290,7 +291,7 @@ const ChatBot = ({ user }) => {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-6 right-6 z-[9999]">
       <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-xl w-96 h-[500px] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
