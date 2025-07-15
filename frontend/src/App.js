@@ -905,7 +905,8 @@ const DroppableColumn = ({ column, tasks, onAddTask, children, users, projects }
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded transition-colors"
+          className="bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded transition-colors kanban-add-button"
+          style={{ zIndex: 200 }}
         >
           <Plus className="w-4 h-4" />
         </button>
