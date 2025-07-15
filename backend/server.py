@@ -37,9 +37,9 @@ app = FastAPI(title="SMB Startup Kanban Board")
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-# N8N Configuration - YOU CAN CONFIGURE THIS FOR YOUR N8N WORKFLOW
-N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'https://your-n8n-instance.com/webhook/chatbot')
-N8N_API_KEY = os.environ.get('N8N_API_KEY', 'your-n8n-api-key')
+# N8N Configuration - YOUR N8N WEBHOOK URL
+N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'https://n8n.smb-ai-solution.com/webhook/bbb411a9-9933-4efe-af83-757d0de7f887')
+N8N_API_KEY = os.environ.get('N8N_API_KEY', '')
 
 # Predefined users for the startup - YOU CAN ADD MORE USERS HERE
 USERS = {
