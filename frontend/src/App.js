@@ -949,15 +949,17 @@ const Header = ({ user, onLogout, onOpenProjects, onOpenAnalytics }) => {
         <div className="flex items-center space-x-4">
           <button
             onClick={onOpenProjects}
-            className="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded transition-colors"
+            className="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded transition-colors header-button"
             title="Manage Projects"
+            style={{ zIndex: 300 }}
           >
             <FolderOpen className="w-4 h-4" />
           </button>
           <button
             onClick={onOpenAnalytics}
-            className="bg-green-600 hover:bg-green-700 text-white p-2 rounded transition-colors"
+            className="bg-green-600 hover:bg-green-700 text-white p-2 rounded transition-colors header-button"
             title="Analytics"
+            style={{ zIndex: 300 }}
           >
             <BarChart3 className="w-4 h-4" />
           </button>
@@ -968,8 +970,9 @@ const Header = ({ user, onLogout, onOpenProjects, onOpenAnalytics }) => {
           </div>
           <button
             onClick={onLogout}
-            className="bg-red-600 hover:bg-red-700 text-white p-2 rounded transition-colors"
+            className="bg-red-600 hover:bg-red-700 text-white p-2 rounded transition-colors header-button"
             title="Logout"
+            style={{ zIndex: 300 }}
           >
             <LogOut className="w-4 h-4" />
           </button>
