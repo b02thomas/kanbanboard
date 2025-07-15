@@ -332,7 +332,7 @@ async def get_dashboard_analytics(current_user: User = Depends(get_current_user)
         "inprogress": len([t for t in tasks if t["status"] == "inprogress"]),
         "testing": len([t for t in tasks if t["status"] == "testing"]),
         "completed": len([t for t in tasks if t["status"] == "completed"]),
-        "overdue": len([t for t in tasks if t.get("deadline") and datetime.fromisoformat(t["deadline"].replace("Z", "+00:00")) < datetime.now()]),
+        "overdue": len([t for t in tasks if t.get("deadline") and t["deadline"] and datetime.fromisoformat(str(t["deadline"]).replace("Z", "+00:00")) < datetime.now()]),
     }
     
     # Priority distribution
