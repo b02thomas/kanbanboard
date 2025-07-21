@@ -1,0 +1,24 @@
+[Unit]
+Description=Kanbanboard Backend API
+After=network.target mongod.service
+Requires=mongod.service
+
+[Service]
+Type=simple
+User=benedikt.thomas
+Group=benedikt.thomas
+WorkingDirectory=/home/benedikt.thomas/projekte/kanbanboard/backend
+Environment=PATH=/home/benedikt.thomas/projekte/kanbanboard/backend/venv/bin
+ExecStart=/home/benedikt.thomas/projekte/kanbanboard/backend/venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 3001
+Restart=always
+RestartSec=10
+
+# Environment variables
+Environment=MONGO_URL=mongodb://localhost:27017
+Environment=DB_NAME=test_database
+Environment=REGISTRATION_MODE=admin_only
+Environment=ADMIN_REGISTRATION_KEY=smb2025
+Environment=SUPER_ADMIN_KEY=smb-super-admin-key-2025
+
+[Install]
+WantedBy=multi-user.target

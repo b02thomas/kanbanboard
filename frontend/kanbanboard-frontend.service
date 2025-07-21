@@ -1,0 +1,22 @@
+[Unit]
+Description=Kanbanboard Frontend
+After=network.target kanbanboard-backend.service
+Requires=kanbanboard-backend.service
+
+[Service]
+Type=simple
+User=benedikt.thomas
+Group=benedikt.thomas
+WorkingDirectory=/home/benedikt.thomas/projekte/kanbanboard/frontend
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=10
+
+# Frontend environment variables
+Environment=REACT_APP_BACKEND_URL=https://task.smb-ai-solution.com
+Environment=WDS_SOCKET_PORT=443
+
+[Install]
+WantedBy=multi-user.target

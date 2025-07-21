@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -15,90 +15,87 @@ from passlib.context import CryptContext
 import httpx
 import json
 
+# Import our settings module
+from settings import settings
+
+# Import rate limiting
+from rate_limiter import (
+    limiter, 
+    login_rate_limit, 
+    api_rate_limit, 
+    registration_rate_limit,
+    security_limiter,
+    configure_app_rate_limiting,
+    get_client_ip
+)
+
+# Import security middleware
+from security_middleware import (
+    configure_secure_cors,
+    configure_security_middleware
+)
+
+# Import input validation
+from input_validation_middleware import configure_input_validation
+from simple_validation_schemas import (
+    EnhancedUserLogin,
+    EnhancedUserRegistration,
+    EnhancedTaskCreate,
+    EnhancedTaskUpdate,
+    EnhancedProjectCreate,
+    EnhancedChatMessage
+)
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# MongoDB connection using settings
+client = AsyncIOMotorClient(settings.mongodb_url)
+db = client[settings.database_name]
 
-# Security setup
-SECRET_KEY = "smb-startup-secret-key-2025"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 hours
+# Security setup using settings
+SECRET_KEY = settings.secret_key
+ALGORITHM = settings.algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 # Create the main app without a prefix
-app = FastAPI(title="SMB Startup Kanban Board")
+app = FastAPI(
+    title=settings.app_name,
+    version=settings.app_version,
+    debug=settings.debug
+)
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Root endpoint
+@app.get("/")
+async def root():
+    return {
+        "message": f"{settings.app_name} API",
+        "version": settings.app_version,
+        "status": "running",
+        "endpoints": {
+            "api": "/api",
+            "docs": "/docs",
+            "redoc": "/redoc"
+        }
+    }
+
 # N8N Configuration - YOUR N8N WEBHOOK URL
-N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'https://n8n.smb-ai-solution.com/webhook/bbb411a9-9933-4efe-af83-757d0de7f887')
+N8N_WEBHOOK_URL = settings.n8n_webhook_url
 N8N_API_KEY = os.environ.get('N8N_API_KEY', '')
 
-# Predefined users for the startup - YOU CAN ADD MORE USERS HERE
-USERS = {
-    "admin": {
-        "id": "admin",
-        "username": "admin",
-        "email": "admin@smb.startup",
-        "full_name": "Admin User",
-        "hashed_password": pwd_context.hash("admin123"),
-        "avatar": "👨‍💼",
-        "role": "admin"
-    },
-    "developer": {
-        "id": "developer", 
-        "username": "developer",
-        "email": "dev@smb.startup",
-        "full_name": "Lead Developer",
-        "hashed_password": pwd_context.hash("dev123"),
-        "avatar": "👨‍💻",
-        "role": "developer"
-    },
-    "designer": {
-        "id": "designer",
-        "username": "designer", 
-        "email": "design@smb.startup",
-        "full_name": "UI/UX Designer",
-        "hashed_password": pwd_context.hash("design123"),
-        "avatar": "👩‍🎨",
-        "role": "designer"
-    },
-    "manager": {
-        "id": "manager",
-        "username": "manager",
-        "email": "manager@smb.startup", 
-        "full_name": "Project Manager",
-        "hashed_password": pwd_context.hash("manager123"),
-        "avatar": "👩‍💼",
-        "role": "manager"
-    },
-    "sales": {
-        "id": "sales",
-        "username": "sales",
-        "email": "sales@smb.startup",
-        "full_name": "Sales Lead",
-        "hashed_password": pwd_context.hash("sales123"),
-        "avatar": "👨‍💰",
-        "role": "sales"
-    }
-    # TO ADD MORE USERS:
-    # "username": {
-    #     "id": "username",
-    #     "username": "username",
-    #     "email": "email@smb.startup",
-    #     "full_name": "Full Name",
-    #     "hashed_password": pwd_context.hash("password123"),
-    #     "avatar": "👤",  # Choose emoji
-    #     "role": "role"
-    # }
-}
+# Registration Configuration
+REGISTRATION_MODE = os.environ.get('REGISTRATION_MODE', 'admin_only')  # open, admin_only, invitation
+ADMIN_REGISTRATION_KEY = settings.registration_key
+SUPER_ADMIN_KEY = settings.super_admin_key
+
+# No predefined users - only admin accounts created via API
+USERS = {}
 
 # Models
 class User(BaseModel):
@@ -112,6 +109,23 @@ class User(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
+
+class UserRegistration(BaseModel):
+    username: str
+    email: str
+    full_name: str
+    password: str
+    avatar: str = "👤"
+    role: str = "user"
+    admin_key: Optional[str] = None
+
+class AdminUserCreate(BaseModel):
+    username: str
+    email: str
+    full_name: str
+    password: str
+    avatar: str = "👨‍💼"
+    super_admin_key: str
 
 class Token(BaseModel):
     access_token: str
@@ -169,6 +183,8 @@ class Task(BaseModel):
     description: Optional[str] = ""
     priority: str = "P2"  # P1, P2, P3, P4
     status: str = "todo"  # todo, inprogress, testing, completed
+    tags: List[str] = Field(default_factory=list)
+    dueStatus: str = "upcoming"  # today, overdue, upcoming
     created_at: datetime = Field(default_factory=datetime.utcnow)
     created_by: str
     project: str = "General"
@@ -182,6 +198,8 @@ class TaskCreate(BaseModel):
     title: str
     description: Optional[str] = ""
     priority: str = "P2"
+    tags: List[str] = Field(default_factory=list)
+    dueStatus: str = "upcoming"
     project: str = "General"
     project_color: str = "blue"
     category: str = "Development"
@@ -193,6 +211,8 @@ class TaskUpdate(BaseModel):
     description: Optional[str] = None
     priority: Optional[str] = None
     status: Optional[str] = None
+    tags: Optional[List[str]] = None
+    dueStatus: Optional[str] = None
     project: Optional[str] = None
     project_color: Optional[str] = None
     category: Optional[str] = None
@@ -202,6 +222,9 @@ class TaskUpdate(BaseModel):
 # Helper functions
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -213,11 +236,66 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def authenticate_user(username: str, password: str):
-    user = USERS.get(username)
+# MongoDB User Management Functions
+async def create_user_in_db(user_data: dict):
+    """Create a new user in MongoDB"""
+    result = await db.users.insert_one(user_data)
+    return result.inserted_id
+
+async def get_user_by_username(username: str):
+    """Get user by username from MongoDB"""
+    user = await db.users.find_one({"username": username})
+    return user
+
+async def get_user_by_email(email: str):
+    """Get user by email from MongoDB"""
+    user = await db.users.find_one({"email": email})
+    return user
+
+async def get_all_users():
+    """Get all users from MongoDB"""
+    users = []
+    async for user in db.users.find({}):
+        user["_id"] = str(user["_id"])  # Convert ObjectId to string
+        users.append(user)
+    return users
+
+async def migrate_hardcoded_users():
+    """Migrate hardcoded users to MongoDB if they don't exist"""
+    for username, user_data in USERS.items():
+        existing_user = await get_user_by_username(username)
+        if not existing_user:
+            await create_user_in_db(user_data)
+
+def check_admin_permission(current_user: User):
+    """Check if user has admin permissions"""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required"
+        )
+
+def validate_registration_access(user_data: UserRegistration):
+    """Validate if registration is allowed based on configuration"""
+    if REGISTRATION_MODE == "admin_only":
+        if not user_data.admin_key or user_data.admin_key != ADMIN_REGISTRATION_KEY:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin key required for registration"
+            )
+    elif REGISTRATION_MODE == "invitation":
+        # TODO: Implement invitation validation
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Invitation-based registration not yet implemented"
+        )
+    # REGISTRATION_MODE == "open" allows unrestricted registration
+
+async def authenticate_user(username: str, password: str):
+    user = await get_user_by_username(username)
     if not user:
         return False
-    if not verify_password(password, user["hashed_password"]):
+    if not verify_password(password, user["password_hash"]):
         return False
     return user
 
@@ -232,12 +310,16 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-    except jwt.PyJWTError:
+    except jwt.InvalidTokenError:
         raise credentials_exception
-    user = USERS.get(username)
+    user = await get_user_by_username(username)
     if user is None:
         raise credentials_exception
-    return User(**user)
+    # Remove MongoDB ObjectId before creating User model
+    user_dict = dict(user)
+    if "_id" in user_dict:
+        del user_dict["_id"]
+    return User(**user_dict)
 
 async def call_n8n_workflow(message: str, user_context: dict) -> str:
     """Call N8N workflow with user message and context"""
@@ -279,31 +361,181 @@ async def call_n8n_workflow(message: str, user_context: dict) -> str:
 
 # Auth Routes
 @api_router.post("/auth/login", response_model=Token)
-async def login(user_credentials: UserLogin):
-    user = authenticate_user(user_credentials.username, user_credentials.password)
+@limiter.limit(settings.login_rate_limit)
+async def login(request: Request, user_credentials: UserLogin):
+    client_ip = get_client_ip(request)
+    
+    # Check if IP is blocked due to too many failed attempts
+    if not security_limiter.check_failed_login(client_ip, user_credentials.username):
+        logging.warning(f"Login blocked for IP {client_ip} due to too many failed attempts")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed login attempts. Please try again later.",
+            headers={"Retry-After": "3600"}
+        )
+    
+    user = await authenticate_user(user_credentials.username, user_credentials.password)
     if not user:
+        # Record failed login attempt
+        security_limiter.record_failed_login(client_ip, user_credentials.username)
+        logging.warning(f"Failed login attempt from IP {client_ip} for user {user_credentials.username}")
+        
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    # Clear failed attempts on successful login
+    security_limiter.clear_failed_attempts(client_ip, user_credentials.username)
+    logging.info(f"Successful login from IP {client_ip} for user {user_credentials.username}")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user["username"]}, expires_delta=access_token_expires
     )
+    # Remove MongoDB ObjectId before creating User model
+    user_dict = dict(user)
+    if "_id" in user_dict:
+        del user_dict["_id"]
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": User(**user)
+        "user": User(**user_dict)
+    }
+
+@api_router.post("/auth/register", response_model=Token)
+@limiter.limit(settings.registration_rate_limit)
+async def register(request: Request, user_data: UserRegistration):
+    # Validate registration access
+    validate_registration_access(user_data)
+    
+    # Check if user already exists
+    existing_user = await get_user_by_username(user_data.username)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists"
+        )
+    
+    existing_email = await get_user_by_email(user_data.email)
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Create new user
+    user_dict = {
+        "id": user_data.username,
+        "username": user_data.username,
+        "email": user_data.email,
+        "full_name": user_data.full_name,
+        "password_hash": get_password_hash(user_data.password),
+        "avatar": user_data.avatar,
+        "role": user_data.role
+    }
+    
+    await create_user_in_db(user_dict)
+    
+    # Generate token for new user
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user_dict["username"]}, expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": User(**user_dict)
     }
 
 @api_router.get("/auth/me", response_model=User)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
+@api_router.post("/auth/admin/create-user", response_model=User)
+async def admin_create_user(user_data: UserRegistration, current_user: User = Depends(get_current_user)):
+    # Check admin permissions
+    check_admin_permission(current_user)
+    
+    # Check if user already exists
+    existing_user = await get_user_by_username(user_data.username)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists"
+        )
+    
+    existing_email = await get_user_by_email(user_data.email)
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Create new user
+    user_dict = {
+        "id": user_data.username,
+        "username": user_data.username,
+        "email": user_data.email,
+        "full_name": user_data.full_name,
+        "password_hash": get_password_hash(user_data.password),
+        "avatar": user_data.avatar,
+        "role": user_data.role
+    }
+    
+    await create_user_in_db(user_dict)
+    return User(**user_dict)
+
+@api_router.post("/auth/admin/create-admin", response_model=User)
+async def create_admin_user(admin_data: AdminUserCreate):
+    # Validate super admin key
+    if admin_data.super_admin_key != SUPER_ADMIN_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid super admin key"
+        )
+    
+    # Check if user already exists
+    existing_user = await get_user_by_username(admin_data.username)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists"
+        )
+    
+    existing_email = await get_user_by_email(admin_data.email)
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Create new admin user
+    user_dict = {
+        "id": admin_data.username,
+        "username": admin_data.username,
+        "email": admin_data.email,
+        "full_name": admin_data.full_name,
+        "password_hash": get_password_hash(admin_data.password),
+        "avatar": admin_data.avatar,
+        "role": "admin"
+    }
+    
+    await create_user_in_db(user_dict)
+    return User(**user_dict)
+
 @api_router.get("/auth/users", response_model=List[User])
 async def get_users(current_user: User = Depends(get_current_user)):
-    return [User(**user) for user in USERS.values()]
+    users = await get_all_users()
+    return [User(**{k: v for k, v in user.items() if k != "_id"}) for user in users]
+
+@api_router.get("/auth/registration-config")
+async def get_registration_config():
+    return {
+        "mode": REGISTRATION_MODE,
+        "requires_admin_key": REGISTRATION_MODE == "admin_only"
+    }
 
 # Chat Routes
 @api_router.get("/chat/messages", response_model=List[ChatMessageResponse])
@@ -315,8 +547,10 @@ async def get_chat_messages(current_user: User = Depends(get_current_user)):
     return [ChatMessageResponse(**msg) for msg in reversed(messages)]
 
 @api_router.post("/chat/messages", response_model=ChatMessageResponse)
+@limiter.limit(settings.api_rate_limit)
 async def send_chat_message(
-    message: ChatMessageCreate, 
+    request: Request,
+    message: EnhancedChatMessage, 
     current_user: User = Depends(get_current_user)
 ):
     # Create user message
@@ -368,7 +602,8 @@ async def get_projects(current_user: User = Depends(get_current_user)):
     return [Project(**project) for project in projects]
 
 @api_router.post("/projects", response_model=Project)
-async def create_project(project: ProjectCreate, current_user: User = Depends(get_current_user)):
+@limiter.limit(settings.api_rate_limit)
+async def create_project(request: Request, project: ProjectCreate, current_user: User = Depends(get_current_user)):
     project_dict = project.dict()
     project_dict["created_by"] = current_user.id
     project_dict["user_id"] = current_user.id
@@ -408,7 +643,8 @@ async def get_tasks(current_user: User = Depends(get_current_user)):
     return [Task(**task) for task in tasks]
 
 @api_router.post("/tasks", response_model=Task)
-async def create_task(task: TaskCreate, current_user: User = Depends(get_current_user)):
+@limiter.limit(settings.api_rate_limit)
+async def create_task(request: Request, task: TaskCreate, current_user: User = Depends(get_current_user)):
     task_dict = task.dict()
     task_dict["created_by"] = current_user.id
     task_dict["user_id"] = current_user.id
@@ -482,13 +718,17 @@ async def get_dashboard_analytics(current_user: User = Depends(get_current_user)
 # Include the router in the main app
 app.include_router(api_router)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Configure input validation (first, to process requests early)
+# configure_input_validation(app)  # DISABLED for testing
+
+# Configure security middleware
+configure_security_middleware(app)
+
+# Configure rate limiting
+configure_app_rate_limiting(app)
+
+# Configure secure CORS
+configure_secure_cors(app)
 
 # Configure logging
 logging.basicConfig(
@@ -496,6 +736,11 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+@app.on_event("startup")
+async def startup_db():
+    # Migrate hardcoded users to MongoDB
+    await migrate_hardcoded_users()
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

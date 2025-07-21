@@ -1,0 +1,39 @@
+npm error code ERESOLVE
+npm error ERESOLVE could not resolve
+npm error
+npm error While resolving: react-scripts@5.0.1
+npm error Found: typescript@5.8.3
+npm error node_modules/typescript
+npm error   dev typescript@"^5.8.3" from the root project
+npm error   peer typescript@">=3" from cosmiconfig-typescript-loader@1.0.9
+npm error   node_modules/cosmiconfig-typescript-loader
+npm error     cosmiconfig-typescript-loader@"^1.0.0" from @craco/craco@7.1.0
+npm error     node_modules/@craco/craco
+npm error       dev @craco/craco@"^7.1.0" from the root project
+npm error   3 more (fork-ts-checker-webpack-plugin, ts-node, tsutils)
+npm error
+npm error Could not resolve dependency:
+npm error peerOptional typescript@"^3.2.1 || ^4" from react-scripts@5.0.1
+npm error node_modules/react-scripts
+npm error   react-scripts@"5.0.1" from the root project
+npm error   peer react-scripts@"^5.0.0" from @craco/craco@7.1.0
+npm error   node_modules/@craco/craco
+npm error     dev @craco/craco@"^7.1.0" from the root project
+npm error
+npm error Conflicting peer dependency: typescript@4.9.5
+npm error node_modules/typescript
+npm error   peerOptional typescript@"^3.2.1 || ^4" from react-scripts@5.0.1
+npm error   node_modules/react-scripts
+npm error     react-scripts@"5.0.1" from the root project
+npm error     peer react-scripts@"^5.0.0" from @craco/craco@7.1.0
+npm error     node_modules/@craco/craco
+npm error       dev @craco/craco@"^7.1.0" from the root project
+npm error
+npm error Fix the upstream dependency conflict, or retry
+npm error this command with --force or --legacy-peer-deps
+npm error to accept an incorrect (and potentially broken) dependency resolution.
+npm error
+npm error
+npm error For a full report see:
+npm error /home/benedikt_thomas/.npm/_logs/2025-07-21T18_42_20_943Z-eresolve-report.txt
+npm error A complete log of this run can be found in: /home/benedikt_thomas/.npm/_logs/2025-07-21T18_42_20_943Z-debug-0.log
